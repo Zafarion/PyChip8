@@ -166,9 +166,9 @@ while not crashed:
                     V[ram[PC] & 0x0F] = (V[ram[PC] & 0x0F] + V[ram[PC + 1] >> 4]) & 0xFF
                     PC += 2
                 case 0x5:
-                    if V[ram[PC] & 0x0F] > V[ram[PC + 1] >> 4]: V[0xF] = 1
+                    if V[ram[PC] & 0x0F] >= V[ram[PC + 1] >> 4]: V[0xF] = 1
                     else: V[0xF] = 0
-                    V[ram[PC] & 0x0F] -= V[ram[PC + 1] >> 4]
+                    V[ram[PC] & 0x0F] = V[ram[PC] & 0x0F] - V[ram[PC + 1] >> 4]
                     PC += 2
                 case 0x6:
                     if V[ram[PC] & 0x0F] & 1: V[0xF] = 1
@@ -176,7 +176,7 @@ while not crashed:
                     V[ram[PC] & 0x0F] = V[ram[PC] & 0x0F] // 2
                     PC += 2
                 case 0x7:
-                    if V[ram[PC + 1] >> 4] > V[ram[PC] & 0x0F]: V[0xF] = 1
+                    if V[ram[PC + 1] >> 4] >= V[ram[PC] & 0x0F]: V[0xF] = 1
                     else: V[0xF] = 0
                     V[ram[PC] & 0x0F] = V[ram[PC + 1] >> 4] - V[ram[PC] & 0x0F]
                     PC += 2
