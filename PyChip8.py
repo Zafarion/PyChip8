@@ -37,10 +37,6 @@ header = [(0xF0),(0x90),(0x90),(0x90),(0xF0),
 
 keys = (pygame.K_x, pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_q, pygame.K_w, pygame.K_e, pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_z, pygame.K_c, pygame.K_4, pygame.K_r, pygame.K_f, pygame.K_v)
 
-cycles = 0
-frame = 0
-crashed = False
-
 #Registers
 V = [0] * 16
 I = 0
@@ -49,6 +45,12 @@ DT = 0
 ST = 0
 SP = 0
 Stack = [0] * 16
+
+#Control variables
+cycles = 0
+frame = 0
+#backup = 0
+crashed = False
 
 font = pygame.font.SysFont("Retro.ttf", 20)
 screen.blit(font.render('Click the ROM to load (max 32 files in the directory):', True, white), (0, 0))
@@ -98,7 +100,8 @@ def drawPixel(x, y, c1, c2):
     oldPixel = pixelColor.index(native_screen.get_at(((x + c1) & 0x3F, (y + pos) & 0x1F)))
     newPixel = ram[I + pos] >> c2 & 1
     if (oldPixel == 1) and (newPixel == 1): V[0xF] = 1
-    native_screen.set_at(((x + c1) & 0x3F, (y + pos) & 0x1F), pixelColor[oldPixel ^ newPixel])
+    #native_screen.set_at(((x + c1) & 0x3F, (y + pos) & 0x1F), pixelColor[oldPixel ^ newPixel])
+    native_screen.set_at(((x + c1), (y + pos)), pixelColor[oldPixel ^ newPixel])
     
 def natural(number):
     if number < 0: return 0
@@ -111,26 +114,27 @@ while not crashed:
      
     match ram[PC] >> 4:
         case 0x0:
-            if ram[PC + 1] == 0xE0: # CLS
-                native_screen.fill(black)
-                resized_screen = pygame.transform.scale(native_screen, (64 * 8, 32 * 8))
-                screen.blit(resized_screen, screen.get_rect())
-                pygame.display.flip()
-                PC += 2
-                #print('CLS')
-            elif ram[PC + 1] == 0xEE: # RET
-                SP -= 1
-                PC = Stack[SP]
-                #print('RET', PC)
-                PC += 2
-            else: PC = ((ram[PC] & 0x0F) << 8) + (ram[PC + 1]) # Sys addr
+            match ram[PC + 1]:
+                case 0xE0: # CLS
+                    native_screen.fill(black)
+                    resized_screen = pygame.transform.scale(native_screen, (64 * 8, 32 * 8))
+                    screen.blit(resized_screen, screen.get_rect())
+                    pygame.display.flip()
+                    PC += 2
+                    #print('CLS')
+                case 0xEE: # RET
+                    SP -= 1
+                    PC = Stack[SP]
+                    #print('RET', PC)
+                    PC += 2
+                case _:
+                    PC = ((ram[PC] & 0x0F) << 8) + (ram[PC + 1]) # SYS addr
+                    #print('SYS', PC)
         case 0x1: # JP addr
             PC = ((ram[PC] & 0x0F) << 8) + ram[PC + 1]
-            #if PC > len(ram):
+            #if PC == backup:
             #    crashed = True
-            #    print('Invalid acess to RAM location:', PC)
-            #    pygame.quit()
-            #    sys.exit()
+            #backup = PC
             #print('JP', PC)
         case 0x2: # CALL addr
             Stack[SP] = PC
@@ -138,7 +142,7 @@ while not crashed:
             PC = ((ram[PC] & 0x0F) << 8) + ram[PC + 1]
             #print('CALL', PC)
         case 0x3: # SE Vx, byte
-            #print('SE V' + str(ram[PC] & 0x0F) + ', ' + str(ram[PC + 1]))
+            #print('SE V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', ' + str(ram[PC + 1]))
             if V[ram[PC] & 0x0F] == ram[PC + 1]:
                 PC += 2
             PC += 2
@@ -148,65 +152,80 @@ while not crashed:
                 PC += 2
             PC += 2
         case 0x5: # SE Vx, Vy
-            #print('SE V' + str(ram[PC] & 0x0F) + ', ' + str(V[ram[PC + 1] >> 4]))
+            #print('SE V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(V[ram[PC + 1] >> 4]) + '=' + str(V[ram[PC + 1] >> 4]))
             if V[ram[PC] & 0x0F] == V[ram[PC + 1] >> 4]:
                 PC += 2
             PC += 2
         case 0x6: # LD Vx, byte
-            #print('LD V' + str(ram[PC] & 0x0F) + ', ' + str(ram[PC + 1]))
+            #print('LD V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) +', ' + str(ram[PC + 1]))
             V[ram[PC] & 0x0F] = ram[PC + 1]
             PC += 2
         case 0x7: # ADD Vx, byte
-            #print('ADD V' + str(ram[PC] & 0x0F) + ', ' + str(ram[PC + 1]))
+            #print('ADD V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', ' + str(ram[PC + 1]))
             V[ram[PC] & 0x0F] = (V[ram[PC] & 0x0F] + ram[PC + 1]) & 0xFF
             PC += 2
         case 0x8:
             match ram[PC + 1] & 0x0F: 
                 case 0x0: # LD Vx, Vy
-                    #print('LD V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4))
+                    #print('LD V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
                     V[ram[PC] & 0x0F] = V[ram[PC + 1] >> 4]
                     PC += 2
                 case 0x1: #OR Vx, Vy
-                    #print('OR V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4))
+                    #print('OR V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
                     V[ram[PC] & 0x0F] |= V[ram[PC + 1] >> 4]
+                    V[0xF] = 0
                     PC += 2
                 case 0x2: #AND Vx, Vy
-                    #print('AND V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4))
+                    #print('AND V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
                     V[ram[PC] & 0x0F] &= V[ram[PC + 1] >> 4]
+                    V[0xF] = 0
                     PC += 2
                 case 0x3: #XOR Vx, Vy
-                    #print('XOR V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4))
+                    #print('XOR V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
                     V[ram[PC] & 0x0F] ^= V[ram[PC + 1] >> 4]
+                    V[0xF] = 0
                     PC += 2
                 case 0x4: #ADD Vx, Vy
-                    #print('ADD V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4))
+                    #print('ADD V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
                     if V[ram[PC] & 0x0F] + V[ram[PC + 1] >> 4] > 255: V[0xF] = 1
                     else: V[0xF] = 0
                     V[ram[PC] & 0x0F] = (V[ram[PC] & 0x0F] + V[ram[PC + 1] >> 4]) & 0xFF
                     PC += 2
                 case 0x5: #SUB Vx, Vy
-                    #print('SUB V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4))
+                    #print('SUB V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
                     if V[ram[PC] & 0x0F] >= V[ram[PC + 1] >> 4]: V[0xF] = 1
                     else: V[0xF] = 0
                     V[ram[PC] & 0x0F] = (V[ram[PC] & 0x0F] - V[ram[PC + 1] >> 4]) & 0xFF
                     PC += 2
                 case 0x6: #SHR Vx {, Vy}
                     #print('SHR V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ' {, V' + str(ram[PC + 1] >> 4) + '}')
+
+                    #if V[ram[PC + 1] >> 4] & 1: V[0xF] = 1
+                    #else: V[0xF] = 0
+                    #V[ram[PC] & 0x0F] = V[ram[PC + 1] >> 4] >> 1
+
                     if V[ram[PC] & 0x0F] & 1: V[0xF] = 1
                     else: V[0xF] = 0
                     V[ram[PC] & 0x0F] = V[ram[PC] & 0x0F] >> 1
+
                     PC += 2
                 case 0x7: #SUBN Vx, Vy
-                    #print('SUBN V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4))
+                    #print('SUBN V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
                     if V[ram[PC + 1] >> 4] >= V[ram[PC] & 0x0F]: V[0xF] = 1
                     else: V[0xF] = 0
                     V[ram[PC] & 0x0F] = (V[ram[PC + 1] >> 4] - V[ram[PC] & 0x0F]) & 0xFF
                     PC += 2
                 case 0xE: #SHL Vx {, Vy}
                     #print('SHL V' + str(ram[PC] & 0x0F) + ' {, V' + str(ram[PC + 1] >> 4) + '}')
+                         
+                    #if V[ram[PC + 1] >> 4] >> 3: V[0xF] = 1
+                    #else: V[0xF] = 0
+                    #V[ram[PC] & 0x0F] = (V[ram[PC + 1] >> 4] << 1) & 0xFF
+
                     if V[ram[PC] & 0x0F] >> 3: V[0xF] = 1
                     else: V[0xF] = 0
                     V[ram[PC] & 0x0F] = (V[ram[PC] & 0x0F] << 1) & 0xFF
+                         
                     PC += 2
                 case _:
                     crashed = True
@@ -215,23 +234,23 @@ while not crashed:
                     sys.exit()
                     
         case 0x9: #SNE Vx, Vy
-            #print('SNE V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4))
+            #print('SNE V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', V' + str(ram[PC + 1] >> 4) + '=' + str(V[ram[PC + 1] >> 4]))
             if V[ram[PC] & 0x0F] != V[ram[PC + 1] >> 4]: PC += 2
             PC += 2
         case 0xA: #LD I, addr
+            #print('LD I=' + str(I) + ',', ((ram[PC] & 0x0F) << 8) + ram[PC + 1])
             I = ((ram[PC] & 0x0F) << 8) + ram[PC + 1]
-            #print('LD I,', I)
             PC += 2
         case 0xB: #JP V0, addr
-            PC = (((ram[PC] & 0x0F) << 8) + ram[PC + 1]) + V[0]
-            #print('JP V0,', PC)
+            #print('JP V0=' + str(V[0]) + ',', ((ram[PC] & 0x0F) << 8) + ram[PC + 1])
+            PC = ((ram[PC] & 0x0F) << 8) + ram[PC + 1] + V[0]
         case 0xC: #RND Vx, byte
             V[ram[PC] & 0x0F] = randint(0, 255) & ram[PC + 1]
             #print('RND V' + str(ram[PC] & 0x0F) + ',', V[ram[PC] & 0x0F])
             PC += 2
         case 0xD: #DRW Vx, Vy, nibble
-            x = (V[ram[PC] & 0x0F])
-            y = (V[ram[PC + 1] >> 4])
+            x = V[ram[PC] & 0x0F]
+            y = V[ram[PC + 1] >> 4]
             n = ram[PC + 1] & 0x0F
             #print('DRW V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4) + ', ' + str(n))
             
@@ -249,7 +268,7 @@ while not crashed:
         case 0xE:
             match ram[PC + 1]:
                 case 0x9E: #SKP Vx
-                    #print('SKP Vx')
+                    #print('SKP V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]))
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             pygame.quit()
@@ -259,7 +278,7 @@ while not crashed:
                         PC += 2
                     PC += 2
                 case 0xA1: #SKNP Vx
-                    #print('SKNP Vx')
+                    #print('SKNP V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]))
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             pygame.quit()
@@ -276,12 +295,13 @@ while not crashed:
         case 0xF:
             match ram[PC + 1]:
                 case 0x07: #LD Vx, DT
-                    #print('LD V' + str(ram[PC] & 0x0F) + ',' + str(DT))
+                    #print('LD V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]) + ', ' + 'DT=' + str(DT))
                     V[ram[PC] & 0x0F] = DT
                     PC += 2
                 case 0x0A: #LD Vx, K
-                    #print('LD Vx, K')
+                    #print('LD V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]), 'K')
                     pygame.display.flip()
+                    DT = 0
                     click = False
                     while not click:
                         event = pygame.event.wait()
@@ -297,38 +317,38 @@ while not crashed:
                                     break
                     PC += 2
                 case 0x15: #LD DT, Vx
-                    #print('LD DT, V' + str(ram[PC] & 0x0F))
+                    #print('LD DT=' + str(DT) + ', V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]))
                     DT = V[ram[PC] & 0x0F]
                     PC += 2
                 case 0x18: #LD ST, Vx
-                    #print('LD ST, V' + str(ram[PC] & 0x0F))
+                    #print('LD ST=' + str(ST) + ', V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]))
                     ST = V[ram[PC] & 0x0F]
                     PC += 2
                 case 0x1E: #ADD I, Vx
-                    #print('ADD I, V', ram[PC] & 0x0F)
+                    #print('ADD I=' + str(I) + ', V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]))
                     I += V[ram[PC] & 0x0F]
                     if I > 0xFFF: V[0xF] == 1
                     else: V[0xF] == 0
                     PC += 2
                 case 0x29: #LD F, Vx
-                    #print('LD F, V' + str(ram[PC] & 0x0F))
+                    #print('LD F, V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]))
                     I = V[ram[PC] & 0x0F] * 5
                     PC += 2
                 case 0x33: #LD B, Vx
-                    #print('LD B, V' + str(ram[PC] & 0x0F))
+                    #print('LD B, V' + str(ram[PC] & 0x0F) + '=' + str(V[ram[PC] & 0x0F]))
                     ram[I] = (V[ram[PC] & 0x0F] // 100) % 10
                     ram[I + 1] = (V[ram[PC] & 0x0F] // 10) % 10
                     ram[I + 2] = (V[ram[PC] & 0x0F] // 1) % 10
                     PC += 2
                 case 0x55: #LD [I], Vx
-                    #print('LD [I], Vx')
                     for i in range((ram[PC] & 0x0F) + 1):
+                        #print('LD [' + str(ram[I]) + '], V' + str(i) + '=' + str(V[i]))
                         ram[I] = V[i]
                         I += 1
                     PC += 2
                 case 0x65: #LD Vx, [I]
-                    #print('LD Vx, [I]')
                     for i in range((ram[PC] & 0x0F) + 1):
+                        #print('LD V' + str(i) + '=' + str(V[i]) + ', [' + str(ram[I]) + ']')
                         V[i] = ram[I]
                         I += 1
                     PC += 2
