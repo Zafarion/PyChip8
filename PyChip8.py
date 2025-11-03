@@ -10,12 +10,13 @@ pygame.init()
 #clock = pygame.time.Clock()
 seed(1)
 
+lcd = (168, 198, 78)
 black = (0, 0, 0)
-white = (255, 255, 255)
-pixelColor = (black, white)
+pixelColor = (lcd, black)
 screen = pygame.display.set_mode((64 * 8, 32 * 8))
+screen.fill(lcd)
 native_screen = pygame.Surface((64, 32))
-#native_screen.fill(white)
+native_screen.fill(lcd)
 pygame.display.set_caption("Another Python Chip8 emulator")
 
 header = [(0xF0),(0x90),(0x90),(0x90),(0xF0),
@@ -53,7 +54,7 @@ frame = 0
 crashed = False
 
 font = pygame.font.SysFont("Retro.ttf", 20)
-screen.blit(font.render('Click the ROM to load (max 32 files in the directory):', True, white), (0, 0))
+screen.blit(font.render('Click the ROM to load (max 32 files in the directory):', True, black), (0, 0))
 
 dir = os.listdir()
 list_x_axis = []
@@ -62,7 +63,7 @@ x_axis = 0
 y_axis = 15
 
 for l in range(len(dir)):
-    text = font.render(dir[l], True, white)
+    text = font.render(dir[l], True, black)
     screen.blit(text, (x_axis, y_axis))
     list_x_axis.append(x_axis)
     list_y_axis.append(y_axis)
@@ -97,12 +98,12 @@ ram.extend([0] * (0x1000 - len(ram)))
 
 def drawPixel(x, y, c1, c2):
 
+    #if (x + c1) <= 64 and (y + pos) <= 32: 
     oldPixel = pixelColor.index(native_screen.get_at(((x + c1) & 0x3F, (y + pos) & 0x1F)))
     newPixel = ram[I + pos] >> c2 & 1
     if (oldPixel == 1) and (newPixel == 1): V[0xF] = 1
-    #native_screen.set_at(((x + c1) & 0x3F, (y + pos) & 0x1F), pixelColor[oldPixel ^ newPixel])
     native_screen.set_at(((x + c1), (y + pos)), pixelColor[oldPixel ^ newPixel])
-    
+        
 def natural(number):
     if number < 0: return 0
     else: return number
@@ -116,7 +117,7 @@ while not crashed:
         case 0x0:
             match ram[PC + 1]:
                 case 0xE0: # CLS
-                    native_screen.fill(black)
+                    native_screen.fill(lcd)
                     resized_screen = pygame.transform.scale(native_screen, (64 * 8, 32 * 8))
                     screen.blit(resized_screen, screen.get_rect())
                     pygame.display.flip()
@@ -249,9 +250,10 @@ while not crashed:
             #print('RND V' + str(ram[PC] & 0x0F) + ',', V[ram[PC] & 0x0F])
             PC += 2
         case 0xD: #DRW Vx, Vy, nibble
-            x = V[ram[PC] & 0x0F]
-            y = V[ram[PC + 1] >> 4]
+            x = (V[ram[PC] & 0x0F]) #& 0x3F
+            y = (V[ram[PC + 1] >> 4]) #& 0x1F
             n = ram[PC + 1] & 0x0F
+            
             #print('DRW V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4) + ', ' + str(n))
             
             V[0xF] = 0
