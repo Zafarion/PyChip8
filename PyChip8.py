@@ -50,7 +50,6 @@ Stack = [0] * 16
 #Control variables
 cycles = 0
 frame = 0
-#backup = 0
 crashed = False
 
 font = pygame.font.SysFont("Retro.ttf", 20)
@@ -95,14 +94,6 @@ for a in range(0x200 - len(header)):
     ram.insert(0, 0)
 ram = bytearray(header) + ram
 ram.extend([0] * (0x1000 - len(ram)))
-
-def drawPixel(x, y, c1, c2):
-
-    #if (x + c1) <= 64 and (y + pos) <= 32: 
-    oldPixel = pixelColor.index(native_screen.get_at(((x + c1) & 0x3F, (y + pos) & 0x1F)))
-    newPixel = ram[I + pos] >> c2 & 1
-    if (oldPixel == 1) and (newPixel == 1): V[0xF] = 1
-    native_screen.set_at(((x + c1), (y + pos)), pixelColor[oldPixel ^ newPixel])
         
 def natural(number):
     if number < 0: return 0
@@ -118,9 +109,6 @@ while not crashed:
             match ram[PC + 1]:
                 case 0xE0: # CLS
                     native_screen.fill(lcd)
-                    resized_screen = pygame.transform.scale(native_screen, (64 * 8, 32 * 8))
-                    screen.blit(resized_screen, screen.get_rect())
-                    pygame.display.flip()
                     PC += 2
                     #print('CLS')
                 case 0xEE: # RET
@@ -133,9 +121,6 @@ while not crashed:
                     #print('SYS', PC)
         case 0x1: # JP addr
             PC = ((ram[PC] & 0x0F) << 8) + ram[PC + 1]
-            #if PC == backup:
-            #    crashed = True
-            #backup = PC
             #print('JP', PC)
         case 0x2: # CALL addr
             Stack[SP] = PC
@@ -250,19 +235,21 @@ while not crashed:
             #print('RND V' + str(ram[PC] & 0x0F) + ',', V[ram[PC] & 0x0F])
             PC += 2
         case 0xD: #DRW Vx, Vy, nibble
-            x = (V[ram[PC] & 0x0F]) #& 0x3F
-            y = (V[ram[PC + 1] >> 4]) #& 0x1F
+            x = (V[ram[PC] & 0x0F]) & 0x3F
+            y = (V[ram[PC + 1] >> 4]) & 0x1F
             n = ram[PC + 1] & 0x0F
             
             #print('DRW V' + str(ram[PC] & 0x0F) + ', V' + str(ram[PC + 1] >> 4) + ', ' + str(n))
             
             V[0xF] = 0
 
-            for pos in range(n):
-                c2 = 7
-                for c1 in range(8):
-                    drawPixel(x, y, c1, c2)
-                    c2 -= 1
+            for row in range(n):
+                for column in range(8):
+                    if (x + column) < 64 and (y + row) < 32:
+                        oldPixel = pixelColor.index(native_screen.get_at(((x + column), (y + row))))
+                        newPixel = ram[I + row] >> (7 - column) & 1
+                        if oldPixel and newPixel: V[0xF] = 1
+                        native_screen.set_at(((x + column), (y + row)), pixelColor[oldPixel ^ newPixel])
             
             resized_screen = pygame.transform.scale(native_screen, (64 * 8, 32 * 8))
             screen.blit(resized_screen, screen.get_rect())
