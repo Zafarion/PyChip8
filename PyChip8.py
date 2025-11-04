@@ -254,6 +254,9 @@ while not crashed:
                         if oldPixel and newPixel: V[0xF] = 1
                         native_screen.set_at(((x + column), (y + row)), pixelColor[oldPixel ^ newPixel])
                         
+            resized_screen = pygame.transform.scale(native_screen, screen.get_size())
+            screen.blit(resized_screen, screen.get_rect())
+                        
             PC += 2
         case 0xE:
             match ram[PC + 1]:
@@ -357,8 +360,6 @@ while not crashed:
     frame += t.time() - time
     if cycles == 8:
         t.sleep(natural(0.0166666666666667 - frame))
-        resized_screen = pygame.transform.scale(native_screen, screen.get_size())
-        screen.blit(resized_screen, screen.get_rect())
         pygame.display.flip()
         if DT > 0: DT -= 1
         if ST > 0:
