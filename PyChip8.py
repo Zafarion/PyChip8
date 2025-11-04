@@ -10,15 +10,6 @@ pygame.init()
 #clock = pygame.time.Clock()
 seed(1)
 
-lcd = (168, 198, 78)
-black = (0, 0, 0)
-pixelColor = (lcd, black)
-screen = pygame.display.set_mode((64 * 8, 32 * 8))
-screen.fill(lcd)
-native_screen = pygame.Surface((64, 32))
-native_screen.fill(lcd)
-pygame.display.set_caption("Another Python Chip8 emulator")
-
 header = [(0xF0),(0x90),(0x90),(0x90),(0xF0),
           (0x20),(0x60),(0x20),(0x20),(0x70),
           (0xF0),(0x10),(0xF0),(0x80),(0xF0),
@@ -52,8 +43,14 @@ cycles = 0
 frame = 0
 crashed = False
 
+black = (0, 0, 0)
+white = (255, 255, 255)
+pixelColor = (black, white)
+screen = pygame.display.set_mode((64 * 16, 32 * 16))
+native_screen = pygame.Surface((64, 32))
+pygame.display.set_caption("Another Python Chip8 emulator")
 font = pygame.font.SysFont("Retro.ttf", 20)
-screen.blit(font.render('Click the ROM to load (max 32 files in the directory):', True, black), (0, 0))
+screen.blit(font.render('Click the ROM filename to load (max 66 files in the dir):', True, white), (0, 0))
 
 dir = os.listdir()
 list_x_axis = []
@@ -62,13 +59,13 @@ x_axis = 0
 y_axis = 15
 
 for l in range(len(dir)):
-    text = font.render(dir[l], True, black)
+    text = font.render(dir[l], True, white)
     screen.blit(text, (x_axis, y_axis))
     list_x_axis.append(x_axis)
     list_y_axis.append(y_axis)
     y_axis += 15
-    if l == 16:
-        x_axis = 256
+    if l == 32:
+        x_axis = 512
         y_axis = 15
 list_x_axis.append(x_axis)
 list_y_axis.append(y_axis)
@@ -84,7 +81,7 @@ while not click:
     if event.type == pygame.MOUSEBUTTONDOWN:
         mouse = pygame.mouse.get_pos()
         for l in range(len(dir)):
-            if (mouse[0] <= list_x_axis[l] + 256) and (mouse[1] >= list_y_axis[l] and mouse[1] < list_y_axis[l + 1]):
+            if (mouse[0] <= list_x_axis[l] + 512) and (mouse[1] >= list_y_axis[l] and mouse[1] < list_y_axis[l + 1]):
                 ram = bytearray(open(dir[l], "rb").read()) #Loading ROM into RAM
                 click = True
                 break
@@ -108,7 +105,7 @@ while not crashed:
         case 0x0:
             match ram[PC + 1]:
                 case 0xE0: # CLS
-                    native_screen.fill(lcd)
+                    native_screen.fill(black)
                     PC += 2
                     #print('CLS')
                 case 0xEE: # RET
@@ -117,8 +114,14 @@ while not crashed:
                     #print('RET', PC)
                     PC += 2
                 case _:
-                    PC = ((ram[PC] & 0x0F) << 8) + (ram[PC + 1]) # SYS addr
+                    #PC = ((ram[PC] & 0x0F) << 8) + (ram[PC + 1]) # SYS addr
                     #print('SYS', PC)
+
+                    crashed = True
+                    print ('Undefined Opcode: 0' + str(hex(ram[PC + 1])))
+                    pygame.quit()
+                    sys.exit()
+                    
         case 0x1: # JP addr
             PC = ((ram[PC] & 0x0F) << 8) + ram[PC + 1]
             #print('JP', PC)
@@ -250,9 +253,7 @@ while not crashed:
                         newPixel = ram[I + row] >> (7 - column) & 1
                         if oldPixel and newPixel: V[0xF] = 1
                         native_screen.set_at(((x + column), (y + row)), pixelColor[oldPixel ^ newPixel])
-            
-            resized_screen = pygame.transform.scale(native_screen, (64 * 8, 32 * 8))
-            screen.blit(resized_screen, screen.get_rect())
+                        
             PC += 2
         case 0xE:
             match ram[PC + 1]:
@@ -356,6 +357,8 @@ while not crashed:
     frame += t.time() - time
     if cycles == 8:
         t.sleep(natural(0.0166666666666667 - frame))
+        resized_screen = pygame.transform.scale(native_screen, screen.get_size())
+        screen.blit(resized_screen, screen.get_rect())
         pygame.display.flip()
         if DT > 0: DT -= 1
         if ST > 0:
