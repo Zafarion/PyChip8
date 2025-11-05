@@ -7,7 +7,6 @@ from random import randint
 import time as t
 
 pygame.init()
-#clock = pygame.time.Clock()
 seed(1)
 
 header = [(0xF0),(0x90),(0x90),(0x90),(0xF0),
@@ -44,13 +43,14 @@ frame = 0
 crashed = False
 
 black = (0, 0, 0)
+turquoise = (66, 233, 244)
 white = (255, 255, 255)
-pixelColor = (black, white)
+pixelColor = (black, turquoise)
 screen = pygame.display.set_mode((64 * 16, 32 * 16))
 native_screen = pygame.Surface((64, 32))
 pygame.display.set_caption("Another Python Chip8 emulator")
 font = pygame.font.SysFont("Retro.ttf", 20)
-screen.blit(font.render('Click the ROM filename to load (max 66 files in the dir):', True, white), (0, 0))
+screen.blit(font.render('Click the ROM filename to load (max 66 files in the dir):', True, turquoise), (0, 0))
 
 dir = os.listdir()
 list_x_axis = []
@@ -98,7 +98,6 @@ def natural(number):
 
 #Main Loop
 while not crashed:
-    #clock.tick(60)
     time = t.time()
      
     match ram[PC] >> 4:
@@ -336,14 +335,14 @@ while not crashed:
                 case 0x55: #LD [I], Vx
                     for i in range((ram[PC] & 0x0F) + 1):
                         #print('LD [' + str(ram[I]) + '], V' + str(i) + '=' + str(V[i]))
-                        ram[I] = V[i]
-                        I += 1
+                        ram[I + i] = V[i]
+                        #I += 1
                     PC += 2
                 case 0x65: #LD Vx, [I]
                     for i in range((ram[PC] & 0x0F) + 1):
                         #print('LD V' + str(i) + '=' + str(V[i]) + ', [' + str(ram[I]) + ']')
-                        V[i] = ram[I]
-                        I += 1
+                        V[i] = ram[I + i]
+                        #I += 1
                     PC += 2
                 case _:
                     crashed = True
@@ -358,7 +357,7 @@ while not crashed:
 
     cycles += 1
     frame += t.time() - time
-    if cycles == 8:
+    if cycles == 11:
         t.sleep(natural(0.0166666666666667 - frame))
         pygame.display.flip()
         if DT > 0: DT -= 1
