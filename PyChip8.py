@@ -43,14 +43,14 @@ frame = 0
 crashed = False
 
 black = (0, 0, 0)
-turquoise = (66, 233, 244)
+blue = (83, 83, 241)
 white = (255, 255, 255)
-pixelColor = (black, turquoise)
+pixelColor = (black, blue)
 screen = pygame.display.set_mode((64 * 16, 32 * 16))
 native_screen = pygame.Surface((64, 32))
 pygame.display.set_caption("Another Python Chip8 emulator")
 font = pygame.font.SysFont("Retro.ttf", 20)
-screen.blit(font.render('Click the ROM filename to load (max 66 files in the dir):', True, turquoise), (0, 0))
+screen.blit(font.render('Click the ROM filename to load (max 67 files in the dir):', True, blue), (0, 0))
 
 dir = os.listdir()
 list_x_axis = []
@@ -60,15 +60,13 @@ y_axis = 15
 
 for l in range(len(dir)):
     text = font.render(dir[l], True, white)
-    screen.blit(text, (x_axis, y_axis))
     list_x_axis.append(x_axis)
     list_y_axis.append(y_axis)
+    screen.blit(text, (x_axis, y_axis))
     y_axis += 15
     if l == 32:
         x_axis = 512
-        y_axis = 15
-list_x_axis.append(x_axis)
-list_y_axis.append(y_axis)
+        y_axis = 0
 
 pygame.display.flip()
 
@@ -175,7 +173,8 @@ while not crashed:
                     PC += 2
                 case 0x6: #SHR Vx {, Vy}
                     temp = V[ram[PC] & 0x0F]
-                    V[ram[PC] & 0x0F] = V[ram[PC] & 0x0F] >> 1
+                    #V[ram[PC] & 0x0F] = V[ram[PC] & 0x0F] >> 1
+                    V[ram[PC] & 0x0F] = V[ram[PC + 1] >> 4] >> 1
                     if temp & 1: V[0xF] = 1
                     else: V[0xF] = 0
                     PC += 2
@@ -187,7 +186,8 @@ while not crashed:
                     PC += 2
                 case 0xE: #SHL Vx {, Vy}
                     temp = V[ram[PC] & 0x0F]
-                    V[ram[PC] & 0x0F] = (V[ram[PC] & 0x0F] << 1) & 0xFF
+                    #V[ram[PC] & 0x0F] = (V[ram[PC] & 0x0F] << 1) & 0xFF
+                    V[ram[PC] & 0x0F] = (V[ram[PC + 1] >> 4] << 1) & 0xFF
                     if (temp >> 7): V[0xF] = 1
                     else: V[0xF] = 0
                     PC += 2
@@ -221,6 +221,7 @@ while not crashed:
                         newPixel = ram[I + row] >> (7 - column) & 1
                         if oldPixel and newPixel: V[0xF] = 1
                         native_screen.set_at(((x + column), (y + row)), pixelColor[oldPixel ^ newPixel])
+                    #else: print('Screen Overflow:', x + column, y + row)
                         
             pygame.transform.scale(native_screen, screen.get_size(), screen)
                         
@@ -293,13 +294,15 @@ while not crashed:
                     PC += 2
                 case 0x55: #LD [I], Vx
                     for i in range((ram[PC] & 0x0F) + 1):
-                        ram[I + i] = V[i]
-                        #I += 1
+                        #ram[I + i] = V[i]
+                        ram[I] = V[i]
+                        I += 1
                     PC += 2
                 case 0x65: #LD Vx, [I]
                     for i in range((ram[PC] & 0x0F) + 1):
-                        V[i] = ram[I + i]
-                        #I += 1
+                        #V[i] = ram[I + i]
+                        V[i] = ram[I]
+                        I += 1
                     PC += 2
                 case _:
                     print ('Undefined Opcode: F' + str(hex(ram[PC + 1])))
@@ -312,7 +315,7 @@ while not crashed:
 
     cycles += 1
     frame += t.time() - time
-    if cycles == 11:
+    if cycles == 8:
         t.sleep(natural(0.0166666666666667 - frame))
         pygame.display.flip()
         if DT > 0: DT -= 1
