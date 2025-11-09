@@ -20,6 +20,9 @@ It seems like that most newer games - even if created for chip8 - were developed
 
 Since ROMs are in the public domain I've included in the package.
 
+INSTRUCTIONS:
+
+To play, put your Chip8 ROMs in the same directory of the executable.
 The keyboard controls are the default used in all windows chip8 emulators (1, 2, 3, 4, Q, W, E, R and bellow).
 
 ![](https://github.com/Zafarion/PyChip8/blob/main/b539b6f3-6481-4a7e-85d5-25f5491928bf.jpeg)
