@@ -50,23 +50,22 @@ screen = pygame.display.set_mode((64 * 16, 32 * 16))
 native_screen = pygame.Surface((64, 32))
 pygame.display.set_caption("Another Python Chip8 emulator")
 font = pygame.font.SysFont("Retro.ttf", 20)
-screen.blit(font.render('Click the ROM filename to load (max 67 files in the dir):', True, blue), (0, 0))
+screen.blit(font.render('Click the ROM filename to load (max 66 files in the dir):', True, blue), (0, 0))
 
 dir = os.listdir()
 list_x_axis = []
 list_y_axis = []
 x_axis = 0
 y_axis = 15
-
 for l in range(len(dir)):
     text = font.render(dir[l], True, white)
+    screen.blit(text, (x_axis, y_axis))
     list_x_axis.append(x_axis)
     list_y_axis.append(y_axis)
-    screen.blit(text, (x_axis, y_axis))
     y_axis += 15
     if l == 32:
         x_axis = 512
-        y_axis = 0
+        y_axis = 15
 
 pygame.display.flip()
 
@@ -79,7 +78,7 @@ while not click:
     if event.type == pygame.MOUSEBUTTONDOWN:
         mouse = pygame.mouse.get_pos()
         for l in range(len(dir)):
-            if (mouse[0] <= list_x_axis[l] + 512) and (mouse[1] >= list_y_axis[l] and mouse[1] < list_y_axis[l + 1]):
+            if (mouse[0] <= list_x_axis[l] + 512) and (mouse[1] >= list_y_axis[l] and mouse[1] < list_y_axis[l] + 15):
                 ram = bytearray(open(dir[l], "rb").read()) #Loading ROM into RAM
                 click = True
                 break
