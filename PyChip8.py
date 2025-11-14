@@ -4,8 +4,8 @@ import os
 import winsound
 from random import seed
 from random import randint
-import time as t
 
+clock = pygame.time.Clock()
 pygame.init()
 seed(1)
 
@@ -39,8 +39,6 @@ Stack = [0] * 16
 
 #Control variables
 cycles = 0
-frame = 0
-crashed = False
 
 black = (0, 0, 0)
 blue = (83, 83, 241)
@@ -88,32 +86,22 @@ for a in range(0x200 - len(header)):
     ram.insert(0, 0)
 ram = bytearray(header) + ram
 ram.extend([0] * (0x1000 - len(ram)))
-        
-def natural(number):
-    if number < 0: return 0
-    else: return number
 
 #Main Loop
-while not crashed:
-    time = t.time()
-     
+while True:
     match ram[PC] >> 4:
         case 0x0:
             match ram[PC + 1]:
                 case 0xE0: # CLS
                     native_screen.fill(black)
                     PC += 2
-                    #print('CLS')
                 case 0xEE: # RET
                     SP -= 1
                     PC = Stack[SP]
-                    #print('RET', PC)
                     PC += 2
                 case _:
                     #PC = ((ram[PC] & 0x0F) << 8) + (ram[PC + 1]) # SYS addr
-                    #print('SYS', PC)
-
-                    print ('Undefined Opcode: 0' + str(hex(ram[PC + 1])))
+                    print ('Undefined Opcode: 0', hex(ram[PC + 1]))
                     pygame.quit()
                     sys.exit()
                     
@@ -191,7 +179,7 @@ while not crashed:
                     else: V[0xF] = 0
                     PC += 2
                 case _:
-                    print ('Undefined Opcode: 8' + str(hex(ram[PC + 1])))
+                    print ('Undefined Opcode: 8', hex(ram[PC + 1]))
                     pygame.quit()
                     sys.exit()
                     
@@ -220,9 +208,9 @@ while not crashed:
                         newPixel = ram[I + row] >> (7 - column) & 1
                         if oldPixel and newPixel: V[0xF] = 1
                         native_screen.set_at(((x + column), (y + row)), pixelColor[oldPixel ^ newPixel])
-                    #else: print('Screen Overflow:', x + column, y + row)
                         
             pygame.transform.scale(native_screen, screen.get_size(), screen)
+            pygame.display.flip()
                         
             PC += 2
         case 0xE:
@@ -246,7 +234,7 @@ while not crashed:
                         PC += 2
                     PC += 2
                 case _:
-                    print ('Undefined Opcode: E' + str(hex(ram[PC + 1])))
+                    print ('Undefined Opcode: E', hex(ram[PC + 1]))
                     pygame.quit()
                     sys.exit()
         case 0xF:
@@ -255,7 +243,6 @@ while not crashed:
                     V[ram[PC] & 0x0F] = DT
                     PC += 2
                 case 0x0A: #LD Vx, K
-                    pygame.display.flip()
                     DT = 0
                     ST = 0
                     click = False
@@ -304,7 +291,7 @@ while not crashed:
                         I += 1
                     PC += 2
                 case _:
-                    print ('Undefined Opcode: F' + str(hex(ram[PC + 1])))
+                    print ('Undefined Opcode: F', hex(ram[PC + 1]))
                     pygame.quit()
                     sys.exit()
         case _:
@@ -313,14 +300,11 @@ while not crashed:
             sys.exit()
 
     cycles += 1
-    frame += t.time() - time
     if cycles == 8:
-        t.sleep(natural(0.0166666666666667 - frame))
-        pygame.display.flip()
+        clock.tick(60)
         if DT > 0: DT -= 1
         if ST > 0:
             winsound.Beep(2500, 1)
             ST -= 1
         cycles = 0
-        frame = 0
 
